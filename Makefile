@@ -16,6 +16,7 @@ MINGW_x86_64=x86_64-w64-mingw32
 WINE=wine
 
 ENABLE_DOTNET_CORE_WINFORMS=1
+ENABLE_DOTNET_CORE_WPF=1
 
 -include user-config.make
 
@@ -43,6 +44,7 @@ SDLIMAGE_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/SDL_image_comp
 THEORAFILE_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/FNA/lib/Theorafile)
 MOJOSHADER_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/FNA/lib/MojoShader)
 WINFORMS_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/winforms)
+WPF_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/wpf)
 
 MONO_BIN_PATH=$(BUILDDIR_ABS)/mono-unix-install/bin
 MONO_LD_PATH=$(BUILDDIR_ABS)/mono-unix-install/lib
@@ -301,6 +303,16 @@ ifeq (1,$(ENABLE_DOTNET_CORE_WINFORMS))
 	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/Accessibility
 	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/System.Windows.Forms
 endif
+ifeq (1,$(ENABLE_DOTNET_CORE_WPF))
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/WindowsBase
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/System.Xaml
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/System.Windows.Input.Manipulations
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/UIAutomationTypes
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/UIAutomationProvider
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/PresentationCore
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/ReachFramework
+	rm -rf $(BUILDDIR)/mono-win32-install/lib/mono/gac/PresentationFramework
+endif
 	touch $@
 IMAGEDIR_BUILD_TARGETS += $(BUILDDIR)/mono-unix/.installed
 
@@ -384,6 +396,109 @@ System.Windows.Forms.dll: $(SRCDIR)/winforms/src/System.Windows.Forms/src/.built
 	$(MONO_ENV) gacutil -i $(SRCDIR)/winforms/src/System.Windows.Forms/src/System.Windows.Forms.dll -root $(IMAGEDIR)/lib
 .PHONY: System.Windows.Forms.dll
 imagedir-targets: System.Windows.Forms.dll
+endif
+
+# dotnet core wpf
+WPF_SRCDIR := $(SRCDIR)/wpf/src/Microsoft.DotNet.Wpf/src
+
+$(WPF_SRCDIR)/WindowsBase.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/System.Xaml.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/System.Windows.Input.Manipulations.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/UIAutomationTypes.dll: Accessibility.dll
+$(WPF_SRCDIR)/UIAutomationTypes.dll: $(WPF_SRCDIR)/System.Xaml.dll
+$(WPF_SRCDIR)/UIAutomationTypes.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/UIAutomationProvider.dll: $(WPF_SRCDIR)/UIAutomationTypes.dll
+$(WPF_SRCDIR)/UIAutomationProvider.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/PresentationCore.dll: $(WPF_SRCDIR)/System.Xaml.dll
+$(WPF_SRCDIR)/PresentationCore.dll: $(WPF_SRCDIR)/System.Windows.Input.Manipulations.dll
+$(WPF_SRCDIR)/PresentationCore.dll: $(WPF_SRCDIR)/UIAutomationTypes.dll
+$(WPF_SRCDIR)/PresentationCore.dll: $(WPF_SRCDIR)/UIAutomationProvider.dll
+$(WPF_SRCDIR)/PresentationCore.dll: $(WPF_SRCDIR)/WindowsBase.dll
+$(WPF_SRCDIR)/PresentationCore.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/ReachFramework.dll: $(WPF_SRCDIR)/System.Xaml.dll
+$(WPF_SRCDIR)/ReachFramework.dll: $(WPF_SRCDIR)/WindowsBase.dll
+$(WPF_SRCDIR)/ReachFramework.dll: $(WPF_SRCDIR)/PresentationCore.dll
+$(WPF_SRCDIR)/ReachFramework.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+$(WPF_SRCDIR)/PresentationFramework.dll: $(WPF_SRCDIR)/System.Xaml.dll
+$(WPF_SRCDIR)/PresentationFramework.dll: $(WPF_SRCDIR)/WindowsBase.dll
+$(WPF_SRCDIR)/PresentationFramework.dll: $(WPF_SRCDIR)/UIAutomationTypes.dll
+$(WPF_SRCDIR)/PresentationFramework.dll: $(WPF_SRCDIR)/UIAutomationProvider.dll
+$(WPF_SRCDIR)/PresentationFramework.dll: $(WPF_SRCDIR)/PresentationCore.dll
+$(WPF_SRCDIR)/PresentationFramework.dll: $(WPF_SRCDIR)/ReachFramework.dll
+$(WPF_SRCDIR)/PresentationFramework.dll: $(BUILDDIR)/mono-unix/.installed $(WPF_SRCS)
+	+$(MONO_ENV) $(MAKE) -C $(@D) $(@F) MONO_PREFIX=$(BUILDDIR_ABS)/mono-unix-install WINE_MONO_SRCDIR=$(SRCDIR_ABS)
+	touch $@
+
+ifeq (1,$(ENABLE_DOTNET_CORE_WPF))
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/System.Xaml.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/System.Windows.Input.Manipulations.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/UIAutomationTypes.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/UIAutomationProvider.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/WindowsBase.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/PresentationCore.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/ReachFramework.dll
+IMAGEDIR_BUILD_TARGETS += $(WPF_SRCDIR)/PresentationFramework.dll
+
+System.Xaml.dll: $(WPF_SRCDIR)/System.Xaml.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/System.Xaml.dll -root $(IMAGEDIR)/lib
+.PHONY: System.Xaml.dll
+imagedir-targets: System.Xaml.dll
+
+WindowsBase.dll: $(WPF_SRCDIR)/WindowsBase.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/WindowsBase.dll -root $(IMAGEDIR)/lib
+.PHONY: WindowsBase.dll
+imagedir-targets: WindowsBase.dll
+
+System.Windows.Input.Manipulations.dll: $(WPF_SRCDIR)/System.Windows.Input.Manipulations.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/System.Windows.Input.Manipulations.dll -root $(IMAGEDIR)/lib
+.PHONY: System.Windows.Input.Manipulations.dll
+imagedir-targets: System.Windows.Input.Manipulations.dll
+
+UIAutomationTypes.dll: $(WPF_SRCDIR)/UIAutomationTypes.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/UIAutomationTypes.dll -root $(IMAGEDIR)/lib
+.PHONY: UIAutomationTypes.dll
+imagedir-targets: UIAutomationTypes.dll
+
+UIAutomationProvider.dll: $(WPF_SRCDIR)/UIAutomationProvider.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/UIAutomationProvider.dll -root $(IMAGEDIR)/lib
+.PHONY: UIAutomationProvider.dll
+imagedir-targets: UIAutomationProvider.dll
+
+PresentationCore.dll: $(WPF_SRCDIR)/PresentationCore.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/PresentationCore.dll -root $(IMAGEDIR)/lib
+.PHONY: PresentationCore.dll
+imagedir-targets: PresentationCore.dll
+
+ReachFramework.dll: $(WPF_SRCDIR)/ReachFramework.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/ReachFramework.dll -root $(IMAGEDIR)/lib
+.PHONY: ReachFramework.dll
+imagedir-targets: ReachFramework.dll
+
+PresentationFramework.dll: $(WPF_SRCDIR)/PresentationFramework.dll
+	$(MONO_ENV) gacutil -i $(WPF_SRCDIR)/PresentationFramework.dll -root $(IMAGEDIR)/lib
+.PHONY: PresentationFramework.dll
+imagedir-targets: PresentationFramework.dll
 endif
 
 # FNA
