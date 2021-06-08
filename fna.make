@@ -1,6 +1,34 @@
 FNA_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/FNA)
 FNA_NETSTUB_SRCS=$(shell $(SRCDIR)/tools/git-updated-files $(SRCDIR)/FNA.NetStub)
 
+define MINGW_TEMPLATE +=
+# FNAMF
+$$(BUILDDIR)/FNAMF-$(1)/.built: $$(FNA_SRCS) $$(MINGW_DEPS)
+	mkdir -p $$(@D)
+	+$$(MINGW_ENV) $(MAKE) -C $$(@D) -f $$(SRCDIR_ABS)/FNA/lib/FNAMF/Makefile ARCH=$(1) SRCDIR="$$(SRCDIR_ABS)/FNA/lib/FNAMF" "MINGW=$$(MINGW_$(1))"
+	touch "$$@"
+ifeq (1,$(ENABLE_FNAMF))
+IMAGEDIR_BUILD_TARGETS += $$(BUILDDIR)/FNAMF-$(1)/.built
+endif
+
+FNAMF-$(1).dll: $$(BUILDDIR)/FNAMF-$(1)/.built
+	mkdir -p "$$(IMAGEDIR)/lib/$(1)"
+	$$(INSTALL_PE_$(1)) "$$(BUILDDIR)/FNAMF-$(1)/FNAMF.dll" "$$(IMAGEDIR)/lib/FNAMF-$(1).dll"
+.PHONY: FNAMF-$(1).dll
+
+FNAMF.dll: FNAMF-$(1).dll
+.PHONY: FNAMF.dll
+
+ifeq (1,$(ENABLE_FNAMF))
+imagedir-targets: FNAMF-$(1).dll
+endif
+
+clean-build-FNAMF-$(1):
+	rm -rf $$(BUILDDIR)/FNAMF-$(1)
+.PHONY: clean-build-FNAMF-$(1)
+clean-build: clean-build-FNAMF-$(1)
+endef
+
 # FNA
 $(SRCDIR)/FNA/bin/Release/FNA.dll: $(BUILDDIR)/mono-unix/.installed $(FNA_SRCS)
 	+$(MONO_ENV) $(MAKE) -C $(SRCDIR)/FNA release
